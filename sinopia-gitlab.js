@@ -22,7 +22,6 @@ var cache = LRU({
 // maxAge is in seconds
 function cacheGet(key, maxAge) {
 	var val = cache.get(key);
-	console.log("cache get", key, val);
 	if(!val) return undefined;
 	if(maxAge && new Date().getTime() - val.added > maxAge * 1000) {
 		cache.del(key);
@@ -32,7 +31,6 @@ function cacheGet(key, maxAge) {
 }
 
 function cacheSet(key, val) {
-	console.log("cache set", key, val);
 	cache.set(key, {
 		data: val,
 		added: new Date().getTime()
@@ -268,7 +266,6 @@ SinopiaGitlab.prototype.adduser = function(username, password, cb) {
 };
 
 SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
-	console.log("project",package)
 	// on error: cb(error)
 	// on access allowed: cb(null, true)
 	// on access denied: cb(null, false)
@@ -326,7 +323,6 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 };
 
 SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
-	console.log(user, package);
 	var self = this;
 	var packageName = package.name;
 	if (!package.gitlab) {
@@ -353,7 +349,6 @@ SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
 		return;
 	}
 	self._getGitlabProject(user.name, packageName, function(error, project) {
-		console.log("project", project)
 		if(error) return cb(error);
 		// Only accessible if explicit access is granted
 		if(!user.name) return denied();
