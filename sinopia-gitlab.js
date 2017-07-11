@@ -22,6 +22,7 @@ var cache = LRU({
 // maxAge is in seconds
 function cacheGet(key, maxAge) {
 	var val = cache.get(key);
+	console.log("cache get", key, val);
 	if(!val) return undefined;
 	if(maxAge && new Date().getTime() - val.added > maxAge * 1000) {
 		cache.del(key);
@@ -31,6 +32,7 @@ function cacheGet(key, maxAge) {
 }
 
 function cacheSet(key, val) {
+	console.log("cache set", key, val);
 	cache.set(key, {
 		data: val,
 		added: new Date().getTime()
@@ -92,33 +94,22 @@ function SinopiaGitlab(settings, params) {
 		}
 	}
 	this.gitlab = new GitlabClient(settings.gitlab_server, { caFile: caFile });
-	this.adminPrivateToken = settings.gitlab_admin_private_token;
-	this.adminUsername = settings.gitlab_admin_username;
-	this.adminPassword = settings.gitlab_admin_password;
 	this.searchNamespaces = settings.gitlab_namespaces || [];
 	this.useScopeAsGroup = settings.gitlab_use_scope_as_group || false;
 	this.projectPrefix = settings.gitlab_project_prefix || '';
 }
 
-SinopiaGitlab.prototype._getAdminToken = function(cb) {
+SinopiaGitlab.prototype._getToken = function(username, cb) {
 	var self = this;
-	if (self.adminPrivateToken) {
-		cb(null, self.adminPrivateToken);
-	} else {
-		checkCache('token-' + self.adminUsername, null, 3600, function(key, extraParams, cb) {
-			self.gitlab.auth(self.adminUsername, self.adminPassword, function(error, user) {
-				if(error) return cb(error);
-				cacheSet('user-' + self.adminUsername, user);
-				cb(null, user.private_token);
-			});
-		}, cb);
-	}
+	checkCache('token-' + username, null, 3600, function(key, extraParams, cb) {
+		throw new Error("User Token missing!");
+	}, cb);
 };
 
 SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
 	var self = this;
 	checkCache('user-' + username, null, 3600, function(key, extraParams, cb) {
-		self._getAdminToken(function(error, token) {
+		self._getToken(username, function(error, token) {
 			self.gitlab.listUsers(username, token, function(error, results) {
 				if(error) return cb(error);
 				results = results.filter(function(user) {
@@ -162,11 +153,11 @@ SinopiaGitlab.prototype._parsePackageName = function (packageName) {
 	return {error: null, namespace: namespace, project: project};
 };
 
-SinopiaGitlab.prototype._getGitlabProject = function (packageName, cb) {
+SinopiaGitlab.prototype._getGitlabProject = function (user, packageName, cb) {
 	var self = this;
 
 	checkCache('project-' + packageName, null, 3600, function (key, extraParams, cb) {
-		self._getAdminToken(function (error, token) {
+		self._getToken(user, function (error, token) {
 			if (error) {
 				return cb(error);
 			}
@@ -217,18 +208,18 @@ SinopiaGitlab.prototype._getGitlabProject = function (packageName, cb) {
 	}, cb);
 };
 
-SinopiaGitlab.prototype._getGitlabProjectMember = function(projectId, userId, cb) {
+SinopiaGitlab.prototype._getGitlabProjectMember = function(user, projectId, userId, cb) {
 	var self = this;
-	self._getAdminToken(function(error, token) {
+	self._getToken(user, function(error, token) {
 		if(error) return cb(error);
 		self.gitlab.getProjectTeamMember(projectId, userId, token, cb);
 	});
 };
 
-SinopiaGitlab.prototype._getGitlabGroupMember = function(groupId, userId, cb) {
+SinopiaGitlab.prototype._getGitlabGroupMember = function(user, groupId, userId, cb) {
 	var self = this;
 	checkCache('groupmember-' + groupId + '-' + userId, null, 600, function(key, extraParams, cb) {
-		self._getAdminToken(function(error, token) {
+		self._getToken(user, function(error, token) {
 			if(error) return cb(error);
 			self.gitlab.listGroupMembers(groupId, token, function(error, members) {
 				if(error) return cb(error);
@@ -277,6 +268,7 @@ SinopiaGitlab.prototype.adduser = function(username, password, cb) {
 };
 
 SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
+	console.log("project",package)
 	// on error: cb(error)
 	// on access allowed: cb(null, true)
 	// on access denied: cb(null, false)
@@ -293,9 +285,13 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 		cb(null, true);
 	}
 	function denied() {
-		var err = Error('access denied');
-		err.status = 403;
-		cb(err);
+		if(package.passOnFailure) {
+			cb(null, false);
+		} else {
+			var err = Error('access denied');
+			err.status = 403;
+			cb(err);
+		}
 	}
 	if(cacheGet('access-' + packageName + '-' + (user.name || 'undefined'), 900)) {
 		setImmediate(function() {
@@ -303,7 +299,7 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 		});
 		return;
 	}
-	self._getGitlabProject(packageName, function(error, project) {
+	self._getGitlabProject(user.name, packageName, function(error, project) {
 		if(error) return cb(error);
 		if(project.visibility_level >= 20) {
 			// accessible to anyone
@@ -316,10 +312,10 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 		if(!user.name) return denied();
 		self._getGitlabUser(user.name, function(error, gitlabUser) {
 			if(error) return cb(error);
-			self._getGitlabProjectMember(project.id, gitlabUser.id, function(error, teamMember) {
+			self._getGitlabProjectMember(user.name, project.id, gitlabUser.id, function(error, teamMember) {
 				if(error) return cb(error);
 				if(teamMember && teamMember.access_level >= 20) return granted();	// level 20 is "reporter", the minimum required to access the code
-				self._getGitlabGroupMember(project.namespace.id, gitlabUser.id, function(error, groupMember) {
+				self._getGitlabGroupMember(user.name, project.namespace.id, gitlabUser.id, function(error, groupMember) {
 					if(error) return cb(error);
 					if(groupMember && groupMember.access_level >= 20) return granted();
 					denied();
@@ -330,6 +326,7 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
 };
 
 SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
+	console.log(user, package);
 	var self = this;
 	var packageName = package.name;
 	if (!package.gitlab) {
@@ -341,9 +338,13 @@ SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
 		cb(null, true);
 	}
 	function denied() {
-		var err = Error('access denied');
-		err.status = 403;
-		cb(err);
+		if(package.passOnFailure) {
+			cb(null, false);
+		} else {
+			var err = Error('access denied');
+			err.status = 403;
+			cb(err);
+		}
 	}
 	if(cacheGet('publish-' + packageName + '-' + (user.name || 'undefined'), 900)) {
 		setImmediate(function() {
@@ -351,16 +352,17 @@ SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
 		});
 		return;
 	}
-	self._getGitlabProject(packageName, function(error, project) {
+	self._getGitlabProject(user.name, packageName, function(error, project) {
+		console.log("project", project)
 		if(error) return cb(error);
 		// Only accessible if explicit access is granted
 		if(!user.name) return denied();
 		self._getGitlabUser(user.name, function(error, gitlabUser) {
 			if(error) return cb(error);
-			self._getGitlabProjectMember(project.id, gitlabUser.id, function(error, teamMember) {
+			self._getGitlabProjectMember(user.name, project.id, gitlabUser.id, function(error, teamMember) {
 				if(error) return cb(error);
 				if(teamMember && teamMember.access_level >= 40) return granted();	// level 40 is "master"
-				self._getGitlabGroupMember(project.namespace.id, gitlabUser.id, function(error, groupMember) {
+				self._getGitlabGroupMember(user.name, project.namespace.id, gitlabUser.id, function(error, groupMember) {
 					if(error) return cb(error);
 					if(groupMember && groupMember.access_level >= 40) return granted();
 					denied();
