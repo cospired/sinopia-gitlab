@@ -100,7 +100,7 @@ function SinopiaGitlab(settings, params) {
 SinopiaGitlab.prototype._getToken = function(username, cb) {
 	var self = this;
 	checkCache('token-' + username, null, 3600, function(key, extraParams, cb) {
-		throw new Error("User Token missing!");
+		cb("User Token missing!");
 	}, cb);
 };
 
@@ -108,6 +108,7 @@ SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
 	var self = this;
 	checkCache('user-' + username, null, 3600, function(key, extraParams, cb) {
 		self._getToken(username, function(error, token) {
+            if(error) return cb(error);
 			self.gitlab.listUsers(username, token, function(error, results) {
 				if(error) return cb(error);
 				results = results.filter(function(user) {
