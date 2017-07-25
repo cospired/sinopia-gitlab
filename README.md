@@ -34,6 +34,11 @@ auth:
 
     #gitlab_ca_file: /path/to/ca/ca.crt         # (Optional) Use for self-signed certificates
 
+    gitlab_public_private_token: XXXXXXXXXXXX   # provide user for unauthenticated public access to projects
+    gitlab_public_username: peter
+    gitlab_public_password: alarm
+
+
 packages:
   '@*/*':
     gitlab: true
