@@ -323,7 +323,10 @@ SinopiaGitlab.prototype.allow_access = function(user, package, cb) {
     return;
   }
   self._getGitlabProject(user.name, packageName, function(error, project) {
-    if(error) return cb(error);
+    if(error) {
+      console.log(error);
+      return denied()
+    }
     if(project.visibility_level >= 20) {
       // accessible to anyone
       return granted();
@@ -375,7 +378,10 @@ SinopiaGitlab.prototype.allow_publish = function(user, package, cb) {
     return;
   }
   self._getGitlabProject(user.name, packageName, function(error, project) {
-    if(error) return cb(error);
+    if(error) {
+      console.log(error);
+      return denied()
+    }
     // Only accessible if explicit access is granted
     if(!user.name) return denied();
     self._getGitlabUser(user.name, function(error, gitlabUser) {
