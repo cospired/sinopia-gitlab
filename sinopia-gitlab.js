@@ -112,7 +112,7 @@ SinopiaGitlab.prototype._getToken = function(username, cb) {
     }
 
     if(self.publicPrivateToken) {
-      cb(null, self.publicPrivateToken);
+      return cb(null, self.publicPrivateToken);
     }
 
     if( !self.publicUsername || !self.publicPassword ) {
@@ -120,9 +120,10 @@ SinopiaGitlab.prototype._getToken = function(username, cb) {
     }
 
     self.gitlab.auth(self.publicUsername, self.publicPassword, function(error, user) {		
-    if(error) return cb(error);		
+      if(error) return cb(error);		
+   
       cacheSet(cacheKey, user);		
-      cb(null, user.private_token);		
+      return cb(null, user.private_token);		
     });
     
   }, cb);
