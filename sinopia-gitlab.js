@@ -265,7 +265,6 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
   var self = this;
   checkCache('auth-' + username, password, 900, function(key, extraParams, cb) {
     self.gitlab.listUsers(username, password, function(error, results) {
-      console.log("result from list users", username, password, results);
       if(error) {
         self.logger.error('Error authenticating to gitlab: ' + error);
         cb(null, false, false);
@@ -283,7 +282,6 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
       }
     });
   }, function(error, cachedAuth) {
-    console.log("AUTH CACHE HIT", cachedAuth, password);
     if (cachedAuth.password !== password) {
       return cb(new Error('Password does not match'));
     }
