@@ -271,7 +271,7 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
         cb(null, false, false);
       } else {
         results = results.filter(function(user) {
-          return user.username === username || user.email.toLowerCase() === username.toLowerCase();
+          return user.username.toLowerCase() === username;
         });
         if(!results.length) return cb(new Error('Error authenticating to gitlab'));
 
