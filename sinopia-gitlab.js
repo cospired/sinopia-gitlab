@@ -137,7 +137,7 @@ SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
       self.gitlab.listUsers(username, token, function(error, results) {
         if(error) return cb(error);
         results = results.filter(function(user) {
-          return user.username === username || user.email.toLowerCase() === username.toLowerCase();
+          return user.username.toLowerCase() === username || user.email.toLowerCase() === username.toLowerCase();
         });
         if(!results.length) return cb(new Error('Could not find user ' + username));
         cb(null, results[0]);
@@ -270,9 +270,12 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
         cb(null, false, false);
       } else {
         results = results.filter(function(user) {
-          return user.username.toLowerCase() === username;
+          return user.username.toLowerCase() === username.toLowerCase();
         });
-        if(!results.length) return cb(new Error('Error authenticating to gitlab'));
+        if(!results.length) {
+          self.logger.error('Error authenticating to gitlab: ' + error);
+          return cb(null, false, false);
+        }
 
         cacheSet('user-' + username, results[0]);
         cacheSet('token-' + username, password); // password is now the private access token
