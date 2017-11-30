@@ -262,9 +262,10 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
   // on user not found: cb(null, undefined)
   // on failed password: cb(null, false)
   // on success: cb(null, [username, groups...])
+  var token = password; // password is now the private access token
   var self = this;
-  checkCache('auth-' + username, password, 900, function(key, extraParams, cb) {
-    self.gitlab.listUsers(username, password, function(error, results) {
+  checkCache('auth-' + username, token, 900, function(key, extraParams, cb) {
+    self.gitlab.listUsers(username, token, function(error, results) {
       if(error) {
         self.logger.error('Error authenticating to gitlab: ' + error);
         cb(null, false, false);
@@ -272,20 +273,20 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
         results = results.filter(function(user) {
           return user.username.toLowerCase() === username.toLowerCase();
         });
-        if(!results.length) {
+        if(results.length === 0) {
           self.logger.error('Error authenticating to gitlab: ' + error);
           return cb(null, false, false);
         }
 
         cacheSet('user-' + username, results[0]);
-        cacheSet('token-' + username, password); // password is now the private access token
+        cacheSet('token-' + username, token);
         cb(null, {
-          password: password
+          password: token
         });
       }
     });
   }, function(error, cachedAuth) {
-    if (cachedAuth.password !== password) {
+    if (cachedAuth.password !== token) {
       return cb(new Error('Password does not match'));
     }
     self._getGitlabUser(username, function(error) {
