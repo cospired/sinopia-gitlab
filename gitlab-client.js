@@ -77,12 +77,11 @@ GitlabClient.prototype.paginate = function(params, cb) {
 	});
 };
 
-GitlabClient.prototype.listUsers = function(search, privateToken, cb) {
+GitlabClient.prototype.getUser = function(privateToken, cb) {
 	this.paginate({
-		url: this.url + 'users',
+		url: this.url + 'user',
 		qs: {
 			private_token: privateToken,
-			search: search
 		},
 		ca: this.options.caFile
 	}, cb);

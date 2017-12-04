@@ -134,13 +134,9 @@ SinopiaGitlab.prototype._getGitlabUser = function(username, cb) {
   checkCache('user-' + username, null, 3600, function(key, extraParams, cb) {
     self._getToken(username, function(error, token) {
             if(error) return cb(error);
-      self.gitlab.listUsers(username, token, function(error, results) {
+      self.gitlab.getUser(token, function(error, result) {
         if(error) return cb(error);
-        results = results.filter(function(user) {
-          return user.username.toLowerCase() === username || user.email.toLowerCase() === username.toLowerCase();
-        });
-        if(!results.length) return cb(new Error('Could not find user ' + username));
-        cb(null, results[0]);
+        cb(null, result);
       });
     });
   }, cb);
@@ -265,25 +261,17 @@ SinopiaGitlab.prototype.authenticate = function(username, password, cb) {
   var token = password; // password is now the private access token
   var self = this;
   checkCache('auth-' + username, token, 900, function(key, extraParams, cb) {
-    self.gitlab.listUsers(username, token, function(error, results) {
+    self.gitlab.getUser(token, function(error, result) {
       if(error) {
-        self.logger.error('Error authenticating to gitlab: ' + error);
-        cb(null, false, false);
-      } else {
-        results = results.filter(function(user) {
-          return user.username.toLowerCase() === username.toLowerCase();
-        });
-        if(results.length === 0) {
-          self.logger.error('Error authenticating to gitlab: ' + error);
-          return cb(null, false, false);
-        }
 
-        cacheSet('user-' + username, results[0]);
-        cacheSet('token-' + username, token);
-        cb(null, {
-          password: token
-        });
+        self.logger.error('Error authenticating to gitlab: ' + error);
+        return cb(null, false, false);
       }
+
+      cacheSet('user-' + username, result);
+      cacheSet('token-' + username, token);
+
+      return cb(null, { password: token });
     });
   }, function(error, cachedAuth) {
     if (cachedAuth.password !== token) {
