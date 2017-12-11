@@ -22,7 +22,7 @@ var cache = LRU({
 // maxAge is in seconds
 function cacheGet(key, maxAge) {
   var val = cache.get(key);
-  console.log(`trying to get ${key} from cache, resulted in:`, val);
+  //console.log(`trying to get ${key} from cache, resulted in:`, val);
   if(!val) return undefined;
   if(maxAge && new Date().getTime() - val.added > maxAge * 1000) {
     console.log('value timed out');
@@ -33,7 +33,7 @@ function cacheGet(key, maxAge) {
 }
 
 function cacheSet(key, val) {
-  console.log(`setting cache key ${key} to `, val);
+  //console.log(`setting cache key ${key} to `, val);
   cache.set(key, {
     data: val,
     added: new Date().getTime()
