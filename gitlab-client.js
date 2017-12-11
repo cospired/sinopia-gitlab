@@ -78,13 +78,20 @@ GitlabClient.prototype.paginate = function(params, cb) {
 };
 
 GitlabClient.prototype.getUser = function(privateToken, cb) {
-	this.paginate({
+	var params = {
 		url: this.url + 'user',
 		qs: {
 			private_token: privateToken,
 		},
 		ca: this.options.caFile
-	}, cb);
+	};
+
+	request(params, function(error, response, body) {
+		if(error) return cb(error);
+		if(response.statusCode < 200 || response.statusCode >= 300) return cb('Invalid status code ' + response.statusCode);
+		cb(null, body);
+	});
+
 };
 
 GitlabClient.prototype.listAllProjects = function(search, privateToken, cb) {
