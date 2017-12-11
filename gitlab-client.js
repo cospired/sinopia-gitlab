@@ -89,7 +89,7 @@ GitlabClient.prototype.getUser = function(privateToken, cb) {
 	request(params, function(error, response, body) {
 		if(error) return cb(error);
 		if(response.statusCode < 200 || response.statusCode >= 300) return cb('Invalid status code ' + response.statusCode);
-		cb(null, body);
+		cb(null, JSON.parse(body));
 	});
 
 };
