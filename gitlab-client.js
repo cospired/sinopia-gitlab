@@ -3,7 +3,7 @@ var async = require('async');
 
 
 function GitlabClient(url, options) {
-	this.url = url + '/api/v3/';
+	this.url = url + '/api/v4/';
 	this.options = options;
 }
 
